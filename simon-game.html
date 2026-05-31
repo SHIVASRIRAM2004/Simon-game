@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simon Game</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green: #00ff6a;
+    --green-dim: #003d1a;
+    --green-glow: rgba(0,255,106,0.6);
+    --red: #ff2d55;
+    --red-dim: #3d0011;
+    --red-glow: rgba(255,45,85,0.6);
+    --yellow: #ffd60a;
+    --yellow-dim: #3d3300;
+    --yellow-glow: rgba(255,214,10,0.6);
+    --blue: #0a84ff;
+    --blue-dim: #00153d;
+    --blue-glow: rgba(10,132,255,0.6);
+    --bg: #0a0a0f;
+    --panel: #12121a;
+    --border: #2a2a3a;
+    --text: #e0e0ff;
+    --accent: #7b61ff;
+  }
+
+  body {
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Orbitron', monospace;
+    color: var(--text);
+    overflow: hidden;
+    position: relative;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 20%, rgba(123,97,255,0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 80%, rgba(0,255,106,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .scanlines {
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.15) 2px,
+      rgba(0,0,0,0.15) 4px
+    );
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .wrapper {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 24px;
+    padding: 20px;
+  }
+
+  .title {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(18px, 4vw, 28px);
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(123,97,255,0.8), 0 0 40px rgba(123,97,255,0.4);
+    letter-spacing: 4px;
+    text-align: center;
+    animation: flicker 4s infinite;
+  }
+
+  @keyframes flicker {
+    0%,95%,100% { opacity: 1; }
+    96% { opacity: 0.8; }
+    97% { opacity: 1; }
+    98% { opacity: 0.6; }
+    99% { opacity: 1; }
+  }
+
+  .scoreboard {
+    display: flex;
+    gap: 32px;
+    align-items: center;
+  }
+
+  .score-block {
+    text-align: center;
+  }
+
+  .score-label {
+    font-size: 9px;
+    color: rgba(224,224,255,0.5);
+    letter-spacing: 2px;
+    margin-bottom: 4px;
+  }
+
+  .score-value {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(20px, 4vw, 32px);
+    color: var(--accent);
+    text-shadow: 0 0 15px rgba(123,97,255,0.7);
+    min-width: 60px;
+    text-align: center;
+  }
+
+  .score-divider {
+    width: 1px;
+    height: 40px;
+    background: var(--border);
+  }
+
+  .game-container {
+    position: relative;
+    width: min(340px, 90vw);
+    height: min(340px, 90vw);
+  }
+
+  .simon-board {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    gap: 8px;
+    padding: 8px;
+    background: #0d0d14;
+    border: 2px solid var(--border);
+    box-shadow: 0 0 40px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.5);
+    overflow: hidden;
+  }
+
+  .btn {
+    border-radius: 0;
+    border: none;
+    cursor: pointer;
+    transition: filter 0.05s, transform 0.05s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: white;
+    opacity: 0;
+    transition: opacity 0.05s;
+  }
+
+  .btn:active::after, .btn.active::after { opacity: 0.15; }
+
+  .btn-green {
+    background: var(--green-dim);
+    border-radius: 50% 0 0 0;
+    box-shadow: inset 0 0 30px rgba(0,255,106,0.1);
+  }
+  .btn-green.active, .btn-green:active {
+    background: var(--green);
+    box-shadow: 0 0 40px var(--green-glow), inset 0 0 20px rgba(255,255,255,0.2);
+    filter: brightness(1.3);
+  }
+
+  .btn-red {
+    background: var(--red-dim);
+    border-radius: 0 50% 0 0;
+    box-shadow: inset 0 0 30px rgba(255,45,85,0.1);
+  }
+  .btn-red.active, .btn-red:active {
+    background: var(--red);
+    box-shadow: 0 0 40px var(--red-glow), inset 0 0 20px rgba(255,255,255,0.2);
+    filter: brightness(1.3);
+  }
+
+  .btn-yellow {
+    background: var(--yellow-dim);
+    border-radius: 0 0 0 50%;
+    box-shadow: inset 0 0 30px rgba(255,214,10,0.1);
+  }
+  .btn-yellow.active, .btn-yellow:active {
+    background: var(--yellow);
+    box-shadow: 0 0 40px var(--yellow-glow), inset 0 0 20px rgba(255,255,255,0.2);
+    filter: brightness(1.3);
+  }
+
+  .btn-blue {
+    background: var(--blue-dim);
+    border-radius: 0 0 50% 0;
+    box-shadow: inset 0 0 30px rgba(10,132,255,0.1);
+  }
+  .btn-blue.active, .btn-blue:active {
+    background: var(--blue);
+    box-shadow: 0 0 40px var(--blue-glow), inset 0 0 20px rgba(255,255,255,0.2);
+    filter: brightness(1.3);
+  }
+
+  .center-hub {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 28%;
+    height: 28%;
+    border-radius: 50%;
+    background: #0a0a0f;
+    border: 2px solid #1e1e2e;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+    box-shadow: 0 0 20px rgba(0,0,0,0.9), inset 0 0 10px rgba(0,0,0,0.5);
+  }
+
+  .hub-logo {
+    font-family: 'Press Start 2P', monospace;
+    font-size: clamp(5px, 1.5vw, 8px);
+    color: rgba(123,97,255,0.7);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .btn-ctrl {
+    font-family: 'Orbitron', monospace;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 12px 24px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    border-radius: 4px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-ctrl::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.2s;
+    z-index: -1;
+  }
+
+  .btn-ctrl:hover::before { transform: scaleX(1); }
+  .btn-ctrl:hover { color: #0a0a0f; }
+  .btn-ctrl:disabled { opacity: 0.3; cursor: not-allowed; }
+  .btn-ctrl:disabled::before { transform: scaleX(0); }
+  .btn-ctrl:disabled:hover { color: var(--accent); }
+
+  .btn-strict {
+    border-color: var(--red);
+    color: var(--red);
+    font-size: 10px;
+    padding: 12px 16px;
+  }
+  .btn-strict::before { background: var(--red); }
+  .btn-strict:hover { color: #0a0a0f; }
+  .btn-strict.on {
+    background: var(--red);
+    color: #0a0a0f;
+  }
+  .btn-strict.on::before { transform: scaleX(1); }
+
+  .status-bar {
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: rgba(224,224,255,0.5);
+    text-transform: uppercase;
+    min-height: 18px;
+    text-align: center;
+  }
+
+  .status-bar.error {
+    color: var(--red);
+    text-shadow: 0 0 10px var(--red-glow);
+    animation: shake 0.3s ease;
+  }
+
+  .status-bar.success {
+    color: var(--green);
+    text-shadow: 0 0 10px var(--green-glow);
+  }
+
+  .status-bar.playing {
+    color: var(--accent);
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%,100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20% { transform: translateX(-6px); }
+    40% { transform: translateX(6px); }
+    60% { transform: translateX(-4px); }
+    80% { transform: translateX(4px); }
+  }
+
+  .level-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    transition: all 0.3s;
+  }
+
+  .dot.active {
+    background: var(--accent);
+    box-shadow: 0 0 8px rgba(123,97,255,0.8);
+  }
+
+  @media (max-width: 400px) {
+    .scoreboard { gap: 20px; }
+    .controls { gap: 8px; }
+    .btn-ctrl { padding: 10px 16px; font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="scanlines"></div>
+<div class="wrapper">
+  <div class="title">SIMON</div>
+
+  <div class="scoreboard">
+    <div class="score-block">
+      <div class="score-label">ROUND</div>
+      <div class="score-value" id="round">00</div>
+    </div>
+    <div class="score-divider"></div>
+    <div class="score-block">
+      <div class="score-label">BEST</div>
+      <div class="score-value" id="best">00</div>
+    </div>
+  </div>
+
+  <div class="game-container">
+    <div class="simon-board">
+      <button class="btn btn-green" id="btn-0" onclick="handlePress(0)" disabled></button>
+      <button class="btn btn-red" id="btn-1" onclick="handlePress(1)" disabled></button>
+      <button class="btn btn-yellow" id="btn-2" onclick="handlePress(2)" disabled></button>
+      <button class="btn btn-blue" id="btn-3" onclick="handlePress(3)" disabled></button>
+      <div class="center-hub">
+        <div class="hub-logo">SIM<br>ON</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="level-dots" id="dots">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    <div class="dot"></div><div class="dot"></div>
+  </div>
+
+  <div class="status-bar" id="status">PRESS START TO PLAY</div>
+
+  <div class="controls">
+    <button class="btn-ctrl" id="startBtn" onclick="startGame()">START</button>
+    <button class="btn-ctrl btn-strict" id="strictBtn" onclick="toggleStrict()">STRICT</button>
+  </div>
+</div>
+
+<script>
+  const colors = ['green','red','yellow','blue'];
+  const freqs  = [415, 310, 252, 209];
+
+  let sequence = [], playerSeq = [], round = 0, best = 0;
+  let strict = false, playing = false, accepting = false;
+  let audioCtx = null;
+
+  function getAudio() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+
+  function playTone(idx, dur = 300) {
+    try {
+      const ctx = getAudio();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = freqs[idx];
+      osc.type = 'sine';
+      gain.gain.setValueAtTime(0.4, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur/1000);
+      osc.start(); osc.stop(ctx.currentTime + dur/1000);
+    } catch(e) {}
+  }
+
+  function playError() {
+    try {
+      const ctx = getAudio();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.frequency.value = 80;
+      osc.type = 'sawtooth';
+      gain.gain.setValueAtTime(0.3, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+      osc.start(); osc.stop(ctx.currentTime + 0.5);
+    } catch(e) {}
+  }
+
+  function flash(idx, dur = 300) {
+    return new Promise(res => {
+      const el = document.getElementById('btn-' + idx);
+      el.classList.add('active');
+      playTone(idx, dur);
+      setTimeout(() => { el.classList.remove('active'); res(); }, dur);
+    });
+  }
+
+  function setStatus(msg, cls = '') {
+    const el = document.getElementById('status');
+    el.className = 'status-bar ' + cls;
+    el.textContent = msg;
+  }
+
+  function updateScore() {
+    document.getElementById('round').textContent = String(round).padStart(2,'0');
+    document.getElementById('best').textContent = String(best).padStart(2,'0');
+  }
+
+  function updateDots() {
+    const dots = document.querySelectorAll('.dot');
+    dots.forEach((d,i) => d.classList.toggle('active', i < Math.min(round,5)));
+  }
+
+  function setButtons(enabled) {
+    colors.forEach((_,i) => document.getElementById('btn-'+i).disabled = !enabled);
+    accepting = enabled;
+  }
+
+  async function playSequence() {
+    setButtons(false);
+    setStatus('WATCH...', 'playing');
+    await sleep(600);
+    const speed = round < 5 ? 600 : round < 10 ? 450 : round < 15 ? 300 : 200;
+    for (let i = 0; i < sequence.length; i++) {
+      await flash(sequence[i], speed * 0.75);
+      await sleep(speed * 0.25);
+    }
+    setStatus('YOUR TURN', '');
+    setButtons(true);
+    playerSeq = [];
+  }
+
+  function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+  async function startGame() {
+    sequence = []; round = 0; playerSeq = [];
+    playing = true;
+    document.getElementById('startBtn').textContent = 'RESTART';
+    updateDots();
+    await nextRound();
+  }
+
+  async function nextRound() {
+    round++;
+    if (round > best) { best = round; }
+    updateScore();
+    updateDots();
+    sequence.push(Math.floor(Math.random() * 4));
+    await playSequence();
+  }
+
+  async function handlePress(idx) {
+    if (!accepting || !playing) return;
+    await flash(idx, 200);
+    playerSeq.push(idx);
+    const pos = playerSeq.length - 1;
+
+    if (playerSeq[pos] !== sequence[pos]) {
+      playError();
+      setStatus('WRONG! ' + (strict ? 'GAME OVER' : 'TRY AGAIN'), 'error');
+      setButtons(false);
+      await flashAll();
+      if (strict) {
+        playing = false;
+        setStatus('GAME OVER — PRESS START', '');
+        document.getElementById('startBtn').textContent = 'START';
+        return;
+      }
+      await sleep(1000);
+      await playSequence();
+      return;
+    }
+
+    if (playerSeq.length === sequence.length) {
+      setStatus('CORRECT!', 'success');
+      setButtons(false);
+      await sleep(800);
+      await nextRound();
+    }
+  }
+
+  async function flashAll() {
+    for (let i = 0; i < 3; i++) {
+      document.querySelectorAll('.btn').forEach(b => b.classList.add('active'));
+      await sleep(150);
+      document.querySelectorAll('.btn').forEach(b => b.classList.remove('active'));
+      await sleep(150);
+    }
+  }
+
+  function toggleStrict() {
+    strict = !strict;
+    const btn = document.getElementById('strictBtn');
+    btn.classList.toggle('on', strict);
+    btn.textContent = strict ? 'STRICT ON' : 'STRICT';
+  }
+</script>
+</body>
+</html>
