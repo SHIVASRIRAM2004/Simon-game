@@ -8,8 +8,7 @@
 
 > An interactive browser-based memory game built with vanilla HTML, CSS, and JavaScript — no frameworks, no dependencies.
 
-🔗 **Live Demo:** [Play Now](https://SHIVASRIRAM2004.github.io/simon-game/simon-game.html)
-
+🔗 **Live Demo:** [Play Now](https://shivasriram2004.github.io/Simon-game/simon-game.html)
 ---
 
 ## 🕹️ About the Game
